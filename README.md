@@ -1,0 +1,33 @@
+# Jellyfin Enhanced Session Cleaner Plugin
+
+![Plugin Version](https://img.shields.io/badge/version-1.0.0.0-blue)
+![Jellyfin Compatible](https://img.shields.io/badge/jellyfin-10.11%2B-purple)
+
+**Enhanced Session Cleaner** is a new plugin based on the original Jellyfin Session Cleaner. It not only automates the removal of stale devices but puts the control back in your hands with a new dashboard interface.
+
+##  Key Features
+
+*   **Active Session Dashboard**: View a real-time list of all active sessions directly from the plugin configuration page.
+*   **Kill Switch**: Manually disconnect (logout) any specific session or device with a single click.
+*   **Auto-Cleanup**: Automatically removes sessions/devices that have been inactive for a configurable number of days.
+
+##  Build & Installation
+
+### Requirements
+*   .NET 9.0 SDK
+
+### Repository Installation
+
+1.  Open your Jellyfin Dashboard.
+2.  Go to **Plugins** > **Repositories**.
+3.  Click (+) Add Repository.
+4.  Name: `Enhanced Session Cleaner`
+5.  Repository URL: `https://raw.githubusercontent.com/Trewqa/jellyfin-plugin-enhancedsessioncleaner/master/manifest.json`
+6.  Save and go to the Catalog to install.
+
+## Credits & License
+
+This project is a **hard fork** of the original [Jellyfin Session Cleaner Plugin](https://github.com/jellyfin/jellyfin-plugin-sessioncleaner).
+Original code licensed under the generic MIT/GPL license of the original repository.
+
+Modifications and enhancements (UI, Kill Switch) developed by Trewqa.

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Session Cleaner</title>
+</head>
+<body>
+<div data-role="page" class="page type-interior pluginConfigurationPage esqConfigurationPage">
+    <div data-role="content">
+        <div class="content-primary">
+            <form class="esqConfigurationForm">
+                <div class="verticalSection verticalSection-extrabottompadding">
+                    <div class="sectionTitleContainer flex align-items-center">
+                        <h2 class="sectionTitle">Session Cleaner Settings:</h2>
+                    </div>
+                    <div class="verticalSection verticalSection-extrabottompadding">
+                        <div class="inputContainer">
+                            <input is="emby-input" type="text" id="txtCleanDays" label="Days:" />
+                            <div class="fieldDescription">Clean sessions older than the entered days.</div>
+                        </div>
+                    </div>
+                    
+                    <div class="verticalSection verticalSection-extrabottompadding">
+                        <h2 class="sectionTitle">Active Sessions</h2>
+                        <div id="activeSessionsList" class="paperList"></div>
+                        <br/>
+                         <button is="emby-button" type="button" class="raised button-alt" onclick="SessionCleanerConfigurationPage.loadSessions();">
+                            <span>Refresh Sessions</span>
+                        </button>
+                    </div>
+
+                    <div>
+                        <button is="emby-button" type="submit" data-theme="b" class="raised button-submit block">
+                            <span>${Save}</span>
+                        </button>
+                        <button is="emby-button" type="button" class="raised button-cancel block btnCancel" onclick="history.back();">
+                            <span>${ButtonCancel}</span>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <script type="text/javascript">
+        var SessionCleanerConfigurationPage = {
+            pluginUniqueId: "51525091-B789-4243-9A9A-123456789ABC",
+            txtCleanDays: null, // Will be set on pageshow
+
+            loadSessions: function() {
+                Dashboard.showLoadingMsg();
+                window.ApiClient.getSessions({
+                    // Only active sessions? Or all? Let's get all.
+                }).then(function(sessions) {
+                    var html = '';
+                    if (sessions.length === 0) {
+                        html = '<div style="padding:10px;">No active sessions found.</div>';
+                    } else {
+                        sessions.forEach(function(session) {
+                            var lastActivity = session.LastActivityDate ? new Date(session.LastActivityDate).toLocaleString() : 'Unknown';
+                            var userName = session.UserName || 'Unknown User';
+                            var deviceName = session.DeviceName || 'Unknown Device';
+                            var client = session.Client || 'Unknown Client';
+                            var deviceId = session.DeviceId;
+
+                            html += '<div class="listItem list-item-hoverable">';
+                            html += '<div class="listItemBody">';
+                            html += '<h3 class="listItemBodyText">' + userName + ' - ' + deviceName + '</h3>';
+                            html += '<div class="secondary">' + client + ' - Last Activity: ' + lastActivity + '</div>';
+                            html += '</div>';
+                            html += '<button is="emby-button" type="button" class="raised button-cancel" style="margin-left:10px;" onclick="SessionCleanerConfigurationPage.killSession(\'' + deviceId + '\')">';
+                            html += '<span>Kill</span>';
+                            html += '</button>';
+                            html += '</div>';
+                        });
+                    }
+                    
+                    var container = document.querySelector('#activeSessionsList');
+                    if(container) container.innerHTML = html;
+                    Dashboard.hideLoadingMsg();
+                }, function() {
+                    Dashboard.hideLoadingMsg();
+                    Dashboard.alert("Error loading sessions.");
+                });
+            },
+
+            killSession: function(deviceId) {
+                 if (!confirm("Are you sure you want to disconnect this device?")) return;
+                 
+                 Dashboard.showLoadingMsg();
+                 // Deleting the device effectively logs it out
+                 window.ApiClient.deleteDevice(deviceId).then(function() {
+                     Dashboard.hideLoadingMsg();
+                     SessionCleanerConfigurationPage.loadSessions();
+                 }, function() {
+                     Dashboard.hideLoadingMsg();
+                     Dashboard.alert("Failed to kill session.");
+                 });
+            }
+        };
+
+        window.addEventListener("pageshow", function (_) {
+            Dashboard.showLoadingMsg();
+            // Re-bind elements as they might be stale if page is cached/reloaded
+            SessionCleanerConfigurationPage.txtCleanDays = document.querySelector("#txtCleanDays");
+            
+            console.log('pageshow');
+            window.ApiClient.getPluginConfiguration(SessionCleanerConfigurationPage.pluginUniqueId).then(function (config) {
+                if(SessionCleanerConfigurationPage.txtCleanDays) {
+                    SessionCleanerConfigurationPage.txtCleanDays.value = config.Days || "30";
+                }
+                Dashboard.hideLoadingMsg();
+            });
+            
+            // Load sessions
+            SessionCleanerConfigurationPage.loadSessions();
+        });
+
+        document.querySelector(".esqConfigurationForm").addEventListener("submit", function(e){
+            e.preventDefault();
+            Dashboard.showLoadingMsg();
+
+            window.ApiClient.getPluginConfiguration(SessionCleanerConfigurationPage.pluginUniqueId).then(function (config) {
+                config.Days = SessionCleanerConfigurationPage.txtCleanDays.value;
+                window.ApiClient.updatePluginConfiguration(SessionCleanerConfigurationPage.pluginUniqueId, config).then(Dashboard.processPluginConfigurationUpdateResult);
+            });
+
+            // Disable default form submission
+            return false;
+        });
+    </script>
+</div>
+</body>
+</html>

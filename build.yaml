@@ -1,0 +1,20 @@
+---
+name: "Enhanced Session Cleaner"
+guid: "51525091-B789-4243-9A9A-123456789ABC"
+version: 1
+targetAbi: "10.11.0.0"
+framework: "net9.0"
+owner: "Trewqa"
+overview: "Removes old sessions and allows manual session management."
+description: >
+  Automatically removes sessions older than a configured limit. 
+  
+  New features:
+  - View active sessions in the dashboard.
+  - Manually disconnect/kill specific sessions.
+
+category: "Administration"
+artifacts:
+  - "Jellyfin.Plugin.EnhancedSessionCleaner.dll"
+changelog: |-
+  - Jellyfin 10.11 support (#25) @crobibero
