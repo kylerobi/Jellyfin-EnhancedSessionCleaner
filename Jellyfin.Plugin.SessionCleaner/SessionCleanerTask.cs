@@ -61,22 +61,31 @@ public class SessionCleanerTask : IScheduledTask, IConfigurableScheduledTask
     public async Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(SessionCleanerPlugin.Instance?.Configuration);
-        var expireDays = SessionCleanerPlugin.Instance.Configuration.Days;
-        var expireDate = DateTime.UtcNow.AddDays(expireDays * -1);
+        var config = SessionCleanerPlugin.Instance.Configuration;
+        var now = DateTime.UtcNow;
         var deviceResult = _deviceManager.GetDevices(new DeviceQuery());
         var devices = deviceResult?.Items;
 
-        if (devices is null)
+        if (devices is null || devices.Count == 0)
         {
             return;
         }
 
-        foreach (var device in devices)
+        for (var i = 0; i < devices.Count; i++)
         {
-            if (device.DateLastActivity < expireDate)
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var device = devices[i];
+            var category = ClientClassifier.Classify(device.AppName, device.DeviceName, config);
+            var expireDays = ClientClassifier.GetRetentionDays(category, config);
+
+            // 0 or less disables cleaning for this kind of client.
+            if (expireDays > 0 && device.DateLastActivity < now.AddDays(-expireDays))
             {
                 await _sessionManager.Logout(device).ConfigureAwait(false);
             }
+
+            progress.Report(100d * (i + 1) / devices.Count);
         }
     }
 

@@ -12,6 +12,7 @@
 *   **Active Session Dashboard**: View a real-time list of all active sessions directly from the plugin configuration page.
 *   **Kill Switch**: Manually disconnect (logout) any specific session or device with a single click.
 *   **Auto-Cleanup**: Automatically removes sessions/devices that have been inactive for a configurable number of days.
+*   **Per-Client Cleanup Rules**: Set separate retention periods for **web** (browser) sessions, **TV** clients (Android TV, Roku, Apple TV, webOS, Tizen, Kodi, ...) and **all other** clients. Leave a web/TV value empty to use the default, or set it to `0` to never clean that client type. The keywords used to detect web and TV clients are editable, and each active session in the dashboard shows the type it was detected as.
 
 ##  Build & Installation
 

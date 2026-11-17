@@ -14,8 +14,28 @@
                     </div>
                     <div class="verticalSection verticalSection-extrabottompadding">
                         <div class="inputContainer">
-                            <input is="emby-input" type="text" id="txtCleanDays" label="Days:" />
-                            <div class="fieldDescription">Clean sessions older than the entered days.</div>
+                            <input is="emby-input" type="number" min="0" id="txtWebDays" label="Web clients - days:" />
+                            <div class="fieldDescription">Clean web (browser) sessions inactive for longer than this many days. Leave empty to use the default below. 0 = never clean web sessions.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="number" min="0" id="txtTvDays" label="TV clients - days:" />
+                            <div class="fieldDescription">Clean TV sessions (Android TV, Roku, Apple TV, webOS, Tizen, Kodi, ...) inactive for longer than this many days. Leave empty to use the default below. 0 = never clean TV sessions.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="number" min="0" id="txtCleanDays" label="Other clients / default - days:" />
+                            <div class="fieldDescription">Clean all other sessions (mobile, desktop, ...) older than this many days. Also used for web / TV when their field is empty. 0 = never clean.</div>
+                        </div>
+                    </div>
+
+                    <div class="verticalSection verticalSection-extrabottompadding">
+                        <h2 class="sectionTitle">Client Detection</h2>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="text" id="txtTvKeywords" label="TV client keywords:" />
+                            <div class="fieldDescription">Comma separated. A session is a TV client if its client name or device name contains any of these (case-insensitive). Checked before the web keywords.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="text" id="txtWebKeywords" label="Web client keywords:" />
+                            <div class="fieldDescription">Comma separated. A session is a web client if its client name or device name contains any of these (case-insensitive).</div>
                         </div>
                     </div>
                     
@@ -45,7 +65,39 @@
     <script type="text/javascript">
         var SessionCleanerConfigurationPage = {
             pluginUniqueId: "51525091-B789-4243-9A9A-123456789ABC",
-            txtCleanDays: null, // Will be set on pageshow
+            defaultWebKeywords: "Jellyfin Web",
+            defaultTvKeywords: "Android TV, AndroidTV, Fire TV, FireTV, Roku, tvOS, Apple TV, webOS, Tizen, Smart TV, Kodi, Xbox",
+            config: null,
+
+            el: function(id) { return document.querySelector('#' + id); },
+
+            escapeHtml: function(value) {
+                return String(value).replace(/[&<>"']/g, function(c) {
+                    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+                });
+            },
+
+            matches: function(keywords, client, deviceName) {
+                return (keywords || '').split(',').some(function(k) {
+                    k = k.trim().toLowerCase();
+                    return k && ((client || '').toLowerCase().indexOf(k) !== -1 || (deviceName || '').toLowerCase().indexOf(k) !== -1);
+                });
+            },
+
+            // Mirrors ClientClassifier.Classify on the server, using the values currently in the form.
+            classify: function(client, deviceName) {
+                var page = SessionCleanerConfigurationPage;
+                if (page.matches(page.el('txtTvKeywords').value, client, deviceName)) return 'TV';
+                if (page.matches(page.el('txtWebKeywords').value, client, deviceName)) return 'Web';
+                return 'Other';
+            },
+
+            parseOptionalDays: function(value) {
+                value = (value || '').trim();
+                if (value === '') return null;
+                var n = parseInt(value, 10);
+                return isNaN(n) ? null : n;
+            },
 
             loadSessions: function() {
                 Dashboard.showLoadingMsg();
@@ -63,12 +115,15 @@
                             var client = session.Client || 'Unknown Client';
                             var deviceId = session.DeviceId;
 
+                            var category = SessionCleanerConfigurationPage.classify(session.Client, session.DeviceName);
+                            var esc = SessionCleanerConfigurationPage.escapeHtml;
+
                             html += '<div class="listItem list-item-hoverable">';
                             html += '<div class="listItemBody">';
-                            html += '<h3 class="listItemBodyText">' + userName + ' - ' + deviceName + '</h3>';
-                            html += '<div class="secondary">' + client + ' - Last Activity: ' + lastActivity + '</div>';
+                            html += '<h3 class="listItemBodyText">' + esc(userName) + ' - ' + esc(deviceName) + '</h3>';
+                            html += '<div class="secondary">[' + category + '] ' + esc(client) + ' - Last Activity: ' + esc(lastActivity) + '</div>';
                             html += '</div>';
-                            html += '<button is="emby-button" type="button" class="raised button-cancel" style="margin-left:10px;" onclick="SessionCleanerConfigurationPage.killSession(\'' + deviceId + '\')">';
+                            html += '<button is="emby-button" type="button" class="raised button-cancel" style="margin-left:10px;" onclick="SessionCleanerConfigurationPage.killSession(\'' + esc(deviceId) + '\')">';
                             html += '<span>Kill</span>';
                             html += '</button>';
                             html += '</div>';
@@ -101,19 +156,19 @@
 
         window.addEventListener("pageshow", function (_) {
             Dashboard.showLoadingMsg();
-            // Re-bind elements as they might be stale if page is cached/reloaded
-            SessionCleanerConfigurationPage.txtCleanDays = document.querySelector("#txtCleanDays");
-            
-            console.log('pageshow');
-            window.ApiClient.getPluginConfiguration(SessionCleanerConfigurationPage.pluginUniqueId).then(function (config) {
-                if(SessionCleanerConfigurationPage.txtCleanDays) {
-                    SessionCleanerConfigurationPage.txtCleanDays.value = config.Days || "30";
-                }
+            var page = SessionCleanerConfigurationPage;
+
+            window.ApiClient.getPluginConfiguration(page.pluginUniqueId).then(function (config) {
+                page.el('txtCleanDays').value = (config.Days !== undefined && config.Days !== null) ? config.Days : 30;
+                page.el('txtWebDays').value = (config.WebDays !== undefined && config.WebDays !== null) ? config.WebDays : '';
+                page.el('txtTvDays').value = (config.TvDays !== undefined && config.TvDays !== null) ? config.TvDays : '';
+                page.el('txtWebKeywords').value = (config.WebClientKeywords !== undefined && config.WebClientKeywords !== null) ? config.WebClientKeywords : page.defaultWebKeywords;
+                page.el('txtTvKeywords').value = (config.TvClientKeywords !== undefined && config.TvClientKeywords !== null) ? config.TvClientKeywords : page.defaultTvKeywords;
                 Dashboard.hideLoadingMsg();
+
+                // Load sessions once keywords are known so they can be categorised
+                page.loadSessions();
             });
-            
-            // Load sessions
-            SessionCleanerConfigurationPage.loadSessions();
         });
 
         document.querySelector(".esqConfigurationForm").addEventListener("submit", function(e){
@@ -121,7 +176,13 @@
             Dashboard.showLoadingMsg();
 
             window.ApiClient.getPluginConfiguration(SessionCleanerConfigurationPage.pluginUniqueId).then(function (config) {
-                config.Days = SessionCleanerConfigurationPage.txtCleanDays.value;
+                var page = SessionCleanerConfigurationPage;
+                var days = parseInt(page.el('txtCleanDays').value, 10);
+                config.Days = isNaN(days) ? 30 : days;
+                config.WebDays = page.parseOptionalDays(page.el('txtWebDays').value);
+                config.TvDays = page.parseOptionalDays(page.el('txtTvDays').value);
+                config.WebClientKeywords = page.el('txtWebKeywords').value;
+                config.TvClientKeywords = page.el('txtTvKeywords').value;
                 window.ApiClient.updatePluginConfiguration(SessionCleanerConfigurationPage.pluginUniqueId, config).then(Dashboard.processPluginConfigurationUpdateResult);
             });
 
