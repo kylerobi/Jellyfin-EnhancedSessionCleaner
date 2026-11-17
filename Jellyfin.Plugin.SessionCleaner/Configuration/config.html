@@ -34,7 +34,7 @@
                                 <input is="emby-checkbox" type="checkbox" id="chkStopPaused" />
                                 <span>Stop videos that stay paused too long</span>
                             </label>
-                            <div class="fieldDescription checkboxFieldDescription">The video is stopped but the client stays signed in, and the resume position is kept. Checked about once a minute by the "Stop Paused Playback" scheduled task.</div>
+                            <div class="fieldDescription checkboxFieldDescription">The video is stopped but the client stays signed in, and the resume position is kept. Checked automatically every 30 seconds. The "Stop Paused Playback" scheduled task runs the same check on demand.</div>
                         </div>
                         <div class="inputContainer">
                             <input is="emby-input" type="number" min="0" id="txtPausedWebMinutes" label="Web clients - minutes paused:" />

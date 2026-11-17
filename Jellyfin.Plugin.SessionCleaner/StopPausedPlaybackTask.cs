@@ -1,41 +1,36 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using MediaBrowser.Controller.Session;
 using MediaBrowser.Model.Globalization;
-using MediaBrowser.Model.Session;
 using MediaBrowser.Model.Tasks;
 using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.EnhancedSessionCleaner;
 
 /// <summary>
-/// Stops playback that has been paused for longer than the configured time, without signing the client out.
+/// Runs the paused playback check on demand. The automatic check runs in <see cref="PausedPlaybackService"/>
+/// every 30 seconds, so this task has no triggers by default.
 /// </summary>
 public class StopPausedPlaybackTask : IScheduledTask, IConfigurableScheduledTask
 {
-    private readonly ISessionManager _sessionManager;
+    private readonly PausedPlaybackMonitor _monitor;
     private readonly ILocalizationManager _localizationManager;
     private readonly ILogger<StopPausedPlaybackTask> _logger;
-
-    // Session id -> (item id, first time this task saw the item paused).
-    private readonly ConcurrentDictionary<string, (Guid ItemId, DateTime FirstSeenPaused)> _pausedSince = new();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="StopPausedPlaybackTask"/> class.
     /// </summary>
-    /// <param name="sessionManager">Instance of the <see cref="ISessionManager"/> interface.</param>
+    /// <param name="monitor">The paused playback monitor.</param>
     /// <param name="localizationManager">Instance of the <see cref="ILocalizationManager"/> interface.</param>
     /// <param name="logger">Instance of the <see cref="ILogger{StopPausedPlaybackTask}"/> interface.</param>
     public StopPausedPlaybackTask(
-        ISessionManager sessionManager,
+        PausedPlaybackMonitor monitor,
         ILocalizationManager localizationManager,
         ILogger<StopPausedPlaybackTask> logger)
     {
-        _sessionManager = sessionManager;
+        _monitor = monitor;
         _localizationManager = localizationManager;
         _logger = logger;
     }
@@ -56,7 +51,7 @@ public class StopPausedPlaybackTask : IScheduledTask, IConfigurableScheduledTask
     public string Key => "StopPausedPlayback";
 
     /// <inheritdoc />
-    public string Description => "Stops videos that have been paused longer than the configured time. Clients stay signed in.";
+    public string Description => "Checks now for videos paused longer than the configured time and stops them. Clients stay signed in. This check also runs automatically every 30 seconds when enabled in the plugin settings.";
 
     /// <inheritdoc />
     public string Category => _localizationManager.GetLocalizedString("TasksMaintenanceCategory");
@@ -64,112 +59,17 @@ public class StopPausedPlaybackTask : IScheduledTask, IConfigurableScheduledTask
     /// <inheritdoc />
     public async Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(SessionCleanerPlugin.Instance?.Configuration);
-        var config = SessionCleanerPlugin.Instance.Configuration;
-
-        if (!config.StopPausedPlayback)
+        if (SessionCleanerPlugin.Instance?.Configuration.StopPausedPlayback != true)
         {
-            _pausedSince.Clear();
+            _logger.LogInformation("Stop Paused Playback is turned off in the Enhanced Session Cleaner settings");
             return;
         }
 
-        var now = DateTime.UtcNow;
-        var sessions = _sessionManager.Sessions.ToList();
-        var stillPaused = new HashSet<string>(StringComparer.Ordinal);
-
-        foreach (var session in sessions)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            var item = session.NowPlayingItem;
-            if (item is null || session.PlayState?.IsPaused != true)
-            {
-                continue;
-            }
-
-            stillPaused.Add(session.Id);
-
-            // Track when we first saw this item paused. Jellyfin's LastPausedDate is also used,
-            // and the later of the two wins so a stale value can never stop playback early.
-            var tracked = _pausedSince.AddOrUpdate(
-                session.Id,
-                _ => (item.Id, now),
-                (_, existing) => existing.ItemId == item.Id ? existing : (item.Id, now));
-            var pausedSince = session.LastPausedDate is DateTime lastPaused && lastPaused > tracked.FirstSeenPaused
-                ? lastPaused
-                : tracked.FirstSeenPaused;
-
-            var category = ClientClassifier.Classify(session.Client, session.DeviceName, config);
-            var allowedMinutes = ClientClassifier.GetPausedMinutes(category, config);
-            if (allowedMinutes <= 0 || now - pausedSince < TimeSpan.FromMinutes(allowedMinutes))
-            {
-                continue;
-            }
-
-            if (!session.SupportsMediaControl)
-            {
-                _logger.LogDebug(
-                    "Paused playback on {DeviceName} ({Client}) can't be stopped: the client doesn't accept remote control",
-                    session.DeviceName,
-                    session.Client);
-                continue;
-            }
-
-            await StopAsync(session, item.Name, config.PausedStopMessage, cancellationToken).ConfigureAwait(false);
-            _pausedSince.TryRemove(session.Id, out _);
-        }
-
-        // Forget sessions that resumed, stopped or disconnected.
-        foreach (var sessionId in _pausedSince.Keys)
-        {
-            if (!stillPaused.Contains(sessionId))
-            {
-                _pausedSince.TryRemove(sessionId, out _);
-            }
-        }
-
+        var stopped = await _monitor.CheckAsync(cancellationToken).ConfigureAwait(false);
+        _logger.LogInformation("Paused playback check stopped {Count} session(s)", stopped);
         progress.Report(100);
     }
 
     /// <inheritdoc />
-    public IEnumerable<TaskTriggerInfo> GetDefaultTriggers()
-    {
-        yield return new TaskTriggerInfo
-        {
-            Type = TaskTriggerInfoType.IntervalTrigger,
-            IntervalTicks = TimeSpan.FromMinutes(1).Ticks
-        };
-    }
-
-    private async Task StopAsync(SessionInfo session, string? itemName, string? message, CancellationToken cancellationToken)
-    {
-        try
-        {
-            if (!string.IsNullOrWhiteSpace(message) && session.SupportsRemoteControl)
-            {
-                await _sessionManager.SendMessageCommand(
-                    null,
-                    session.Id,
-                    new MessageCommand { Header = "Playback stopped", Text = message, TimeoutMs = 10000 },
-                    cancellationToken).ConfigureAwait(false);
-            }
-
-            await _sessionManager.SendPlaystateCommand(
-                null,
-                session.Id,
-                new PlaystateRequest { Command = PlaystateCommand.Stop },
-                cancellationToken).ConfigureAwait(false);
-
-            _logger.LogInformation(
-                "Stopped paused playback of {ItemName} on {DeviceName} ({Client}) for user {UserName}",
-                itemName,
-                session.DeviceName,
-                session.Client,
-                session.UserName);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            _logger.LogWarning(ex, "Failed to stop paused playback on {DeviceName} ({Client})", session.DeviceName, session.Client);
-        }
-    }
+    public IEnumerable<TaskTriggerInfo> GetDefaultTriggers() => Enumerable.Empty<TaskTriggerInfo>();
 }

@@ -1,6 +1,6 @@
 # Jellyfin Enhanced Session Cleaner Plugin
 
-![Plugin Version](https://img.shields.io/badge/version-2.1.0.0-blue)
+![Plugin Version](https://img.shields.io/badge/version-2.1.1.0-blue)
 ![Jellyfin Compatible](https://img.shields.io/badge/jellyfin-12.0--12.4-purple)
 
 **Enhanced Session Cleaner** is a new plugin based on the original Jellyfin Session Cleaner. It not only automates the removal of stale devices but puts the control back in your hands with a new dashboard interface.
