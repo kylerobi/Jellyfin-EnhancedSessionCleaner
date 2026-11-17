@@ -79,6 +79,22 @@ public static class ClientClassifier
         };
     }
 
+    /// <summary>
+    /// Gets the number of minutes playback of a category may stay paused. 0 or less means never stop.
+    /// </summary>
+    /// <param name="category">The client category.</param>
+    /// <param name="config">The plugin configuration.</param>
+    /// <returns>The allowed pause time in minutes.</returns>
+    public static int GetPausedMinutes(ClientCategory category, PluginConfiguration config)
+    {
+        return category switch
+        {
+            ClientCategory.Web => config.PausedWebMinutes ?? config.PausedMinutes,
+            ClientCategory.Tv => config.PausedTvMinutes ?? config.PausedMinutes,
+            _ => config.PausedMinutes
+        };
+    }
+
     private static bool Matches(string? keywords, string? appName, string? deviceName)
     {
         if (string.IsNullOrWhiteSpace(keywords))

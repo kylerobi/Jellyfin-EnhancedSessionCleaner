@@ -28,6 +28,33 @@
                     </div>
 
                     <div class="verticalSection verticalSection-extrabottompadding">
+                        <h2 class="sectionTitle">Stop Paused Playback</h2>
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label class="emby-checkbox-label">
+                                <input is="emby-checkbox" type="checkbox" id="chkStopPaused" />
+                                <span>Stop videos that stay paused too long</span>
+                            </label>
+                            <div class="fieldDescription checkboxFieldDescription">The video is stopped but the client stays signed in, and the resume position is kept. Checked about once a minute by the "Stop Paused Playback" scheduled task.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="number" min="0" id="txtPausedWebMinutes" label="Web clients - minutes paused:" />
+                            <div class="fieldDescription">Leave empty to use the default below. 0 = never stop paused web playback.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="number" min="0" id="txtPausedTvMinutes" label="TV clients - minutes paused:" />
+                            <div class="fieldDescription">Leave empty to use the default below. 0 = never stop paused TV playback.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="number" min="0" id="txtPausedMinutes" label="Other clients / default - minutes paused:" />
+                            <div class="fieldDescription">Also used for web / TV when their field is empty. 0 = never stop.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="text" id="txtPausedMessage" label="Message shown on the client:" />
+                            <div class="fieldDescription">Shown on clients that support messages when their video is stopped. Leave empty to show nothing.</div>
+                        </div>
+                    </div>
+
+                    <div class="verticalSection verticalSection-extrabottompadding">
                         <h2 class="sectionTitle">Client Detection</h2>
                         <div class="inputContainer">
                             <input is="emby-input" type="text" id="txtTvKeywords" label="TV client keywords:" />
@@ -67,6 +94,7 @@
             pluginUniqueId: "51525091-B789-4243-9A9A-123456789ABC",
             defaultWebKeywords: "Jellyfin Web",
             defaultTvKeywords: "Android TV, AndroidTV, Fire TV, FireTV, Roku, tvOS, Apple TV, webOS, Tizen, Smart TV, Kodi, Xbox",
+            defaultPausedMessage: "Playback was stopped because it was paused for too long.",
             config: null,
 
             el: function(id) { return document.querySelector('#' + id); },
@@ -92,7 +120,7 @@
                 return 'Other';
             },
 
-            parseOptionalDays: function(value) {
+            parseOptionalDays: function(value) { // also used for optional minutes
                 value = (value || '').trim();
                 if (value === '') return null;
                 var n = parseInt(value, 10);
@@ -121,7 +149,13 @@
                             html += '<div class="listItem list-item-hoverable">';
                             html += '<div class="listItemBody">';
                             html += '<h3 class="listItemBodyText">' + esc(userName) + ' - ' + esc(deviceName) + '</h3>';
+                            var playing = '';
+                            if (session.NowPlayingItem) {
+                                var paused = session.PlayState && session.PlayState.IsPaused;
+                                playing = '<div class="secondary">' + (paused ? 'Paused: ' : 'Playing: ') + esc(session.NowPlayingItem.Name || 'Unknown') + '</div>';
+                            }
                             html += '<div class="secondary">[' + category + '] ' + esc(client) + ' - Last Activity: ' + esc(lastActivity) + '</div>';
+                            html += playing;
                             html += '</div>';
                             html += '<button is="emby-button" type="button" class="raised button-cancel" style="margin-left:10px;" onclick="SessionCleanerConfigurationPage.killSession(\'' + esc(deviceId) + '\')">';
                             html += '<span>Kill</span>';
@@ -164,6 +198,11 @@
                 page.el('txtTvDays').value = (config.TvDays !== undefined && config.TvDays !== null) ? config.TvDays : '';
                 page.el('txtWebKeywords').value = (config.WebClientKeywords !== undefined && config.WebClientKeywords !== null) ? config.WebClientKeywords : page.defaultWebKeywords;
                 page.el('txtTvKeywords').value = (config.TvClientKeywords !== undefined && config.TvClientKeywords !== null) ? config.TvClientKeywords : page.defaultTvKeywords;
+                page.el('chkStopPaused').checked = config.StopPausedPlayback === true;
+                page.el('txtPausedMinutes').value = (config.PausedMinutes !== undefined && config.PausedMinutes !== null) ? config.PausedMinutes : 30;
+                page.el('txtPausedWebMinutes').value = (config.PausedWebMinutes !== undefined && config.PausedWebMinutes !== null) ? config.PausedWebMinutes : '';
+                page.el('txtPausedTvMinutes').value = (config.PausedTvMinutes !== undefined && config.PausedTvMinutes !== null) ? config.PausedTvMinutes : '';
+                page.el('txtPausedMessage').value = (config.PausedStopMessage !== undefined && config.PausedStopMessage !== null) ? config.PausedStopMessage : page.defaultPausedMessage;
                 Dashboard.hideLoadingMsg();
 
                 // Load sessions once keywords are known so they can be categorised
@@ -183,6 +222,12 @@
                 config.TvDays = page.parseOptionalDays(page.el('txtTvDays').value);
                 config.WebClientKeywords = page.el('txtWebKeywords').value;
                 config.TvClientKeywords = page.el('txtTvKeywords').value;
+                config.StopPausedPlayback = page.el('chkStopPaused').checked;
+                var pausedMinutes = parseInt(page.el('txtPausedMinutes').value, 10);
+                config.PausedMinutes = isNaN(pausedMinutes) ? 30 : pausedMinutes;
+                config.PausedWebMinutes = page.parseOptionalDays(page.el('txtPausedWebMinutes').value);
+                config.PausedTvMinutes = page.parseOptionalDays(page.el('txtPausedTvMinutes').value);
+                config.PausedStopMessage = page.el('txtPausedMessage').value;
                 window.ApiClient.updatePluginConfiguration(SessionCleanerConfigurationPage.pluginUniqueId, config).then(Dashboard.processPluginConfigurationUpdateResult);
             });
 
