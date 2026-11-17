@@ -30,7 +30,7 @@ dotnet build -c Release
 2.  Go to **Plugins** > **Repositories**.
 3.  Click (+) Add Repository.
 4.  Name: `Enhanced Session Cleaner`
-5.  Repository URL: `https://raw.githubusercontent.com/Trewqa/jellyfin-plugin-enhancedsessioncleaner/master/manifest.json`
+5.  Repository URL: `https://raw.githubusercontent.com/kylerobi/jellyfin-plugin-enhancedsessioncleaner/main/manifest.json`
 6.  Save and go to the Catalog to install.
 
 ## Credits & License
