@@ -1,7 +1,7 @@
 # Jellyfin Enhanced Session Cleaner Plugin
 
-![Plugin Version](https://img.shields.io/badge/version-1.0.0.0-blue)
-![Jellyfin Compatible](https://img.shields.io/badge/jellyfin-10.11%2B-purple)
+![Plugin Version](https://img.shields.io/badge/version-2.0.0.0-blue)
+![Jellyfin Compatible](https://img.shields.io/badge/jellyfin-12.0--12.4-purple)
 
 **Enhanced Session Cleaner** is a new plugin based on the original Jellyfin Session Cleaner. It not only automates the removal of stale devices but puts the control back in your hands with a new dashboard interface.
 
@@ -17,7 +17,12 @@
 ##  Build & Installation
 
 ### Requirements
-*   .NET 9.0 SDK
+*   .NET 10.0 SDK
+*   Jellyfin 12.0 – 12.4 (version 2.x). For Jellyfin 10.11, use plugin version 1.x.
+
+```bash
+dotnet build -c Release
+```
 
 ### Repository Installation
 
