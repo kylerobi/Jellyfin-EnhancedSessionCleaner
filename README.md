@@ -6,6 +6,10 @@
 **Enhanced Session Cleaner** is a new plugin based on the original Jellyfin Session Cleaner. It not only automates the removal of stale devices but puts the control back in your hands with a new dashboard interface.
 
 ![Active Session Dashboard](https://github.com/user-attachments/assets/d1f6bc94-29b6-4e31-9286-8a54f261c1e8)
+![Active Session Settings](https://github.com/user-attachments/assets/d79aa0d2-d46a-4bb2-869b-b967410a54b9)
+![Video Playback Stop Settings](https://github.com/user-attachments/assets/0f690a17-f1bd-4238-9e18-1af3acd2641d)
+
+
 
 ##  Key Features
 
