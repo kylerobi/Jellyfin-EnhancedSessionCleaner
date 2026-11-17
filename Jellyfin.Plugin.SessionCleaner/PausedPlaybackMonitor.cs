@@ -17,6 +17,9 @@ namespace Jellyfin.Plugin.EnhancedSessionCleaner;
 /// </summary>
 public sealed class PausedPlaybackMonitor
 {
+    // How long to wait for a client to act on a stop before warning and sending it again.
+    private static readonly TimeSpan _retryAfter = TimeSpan.FromMinutes(2);
+
     private readonly ISessionManager _sessionManager;
     private readonly ILogger<PausedPlaybackMonitor> _logger;
     private readonly ConcurrentDictionary<string, SessionState> _states = new(StringComparer.Ordinal);
@@ -87,6 +90,7 @@ public sealed class PausedPlaybackMonitor
 
                 state.ItemId = item.Id;
                 state.FirstSeenPaused = null;
+                state.StopSentAt = null;
                 state.Reported = false;
             }
 
@@ -94,6 +98,7 @@ public sealed class PausedPlaybackMonitor
             {
                 state.NotPausedAt = now;
                 state.FirstSeenPaused = null;
+                state.StopSentAt = null;
                 state.Reported = false;
                 continue;
             }
@@ -125,10 +130,25 @@ public sealed class PausedPlaybackMonitor
                 continue;
             }
 
+            // A stop was already sent for this pause. Give the client time to act on it before trying again.
+            if (state.StopSentAt is DateTime stopSentAt)
+            {
+                if (now - stopSentAt < _retryAfter)
+                {
+                    continue;
+                }
+
+                _logger.LogWarning(
+                    "{DeviceName} ({Client}) is still paused {Minutes:F0} minutes after it was told to stop; sending the stop again",
+                    session.DeviceName,
+                    session.Client,
+                    (now - stopSentAt).TotalMinutes);
+            }
+
             if (await StopAsync(session, item.Name, config.PausedStopMessage, state, cancellationToken).ConfigureAwait(false))
             {
                 stoppedCount++;
-                _states.TryRemove(session.Id, out _);
+                state.StopSentAt = now;
             }
         }
 
@@ -146,13 +166,16 @@ public sealed class PausedPlaybackMonitor
 
     private async Task<bool> StopAsync(SessionInfo session, string? itemName, string? message, SessionState state, CancellationToken cancellationToken)
     {
-        if (!session.SupportsMediaControl)
+        // Like Jellyfin's own inactive-session check, don't rely on the client's "supports media control"
+        // flag: Jellyfin Web often reports it as off yet still acts on a stop. A client can only be reached
+        // through a live connection (normally a WebSocket), so that is the one thing that must be present.
+        if (session.SessionControllers.Count == 0)
         {
             if (!state.Reported)
             {
                 state.Reported = true;
                 _logger.LogInformation(
-                    "Can't stop paused playback on {DeviceName} ({Client}): the client doesn't accept remote control",
+                    "Can't stop paused playback on {DeviceName} ({Client}): it has no live connection to the server. If it is a browser behind a reverse proxy, make sure the proxy passes WebSocket connections",
                     session.DeviceName,
                     session.Client);
             }
@@ -186,14 +209,14 @@ public sealed class PausedPlaybackMonitor
         }
 
         _logger.LogInformation(
-            "Stopped paused playback of {ItemName} on {DeviceName} ({Client}) for user {UserName}",
+            "Sent stop for paused playback of {ItemName} on {DeviceName} ({Client}) for user {UserName}",
             itemName,
             session.DeviceName,
             session.Client,
             session.UserName);
 
         // The message is a courtesy: a client that can't show it must not keep the video from stopping.
-        if (!string.IsNullOrWhiteSpace(message) && session.SupportsRemoteControl)
+        if (!string.IsNullOrWhiteSpace(message) && state.StopSentAt is null)
         {
             try
             {
@@ -219,6 +242,8 @@ public sealed class PausedPlaybackMonitor
         public DateTime? FirstSeenPaused { get; set; }
 
         public DateTime? NotPausedAt { get; set; }
+
+        public DateTime? StopSentAt { get; set; }
 
         public bool Reported { get; set; }
     }
