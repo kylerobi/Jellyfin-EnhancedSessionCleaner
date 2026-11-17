@@ -2,11 +2,19 @@
   {
     "guid": "51525091-B789-4243-9A9A-123456789ABC",
     "name": "Enhanced Session Cleaner",
-    "description": "Automatically removes sessions older than a configured limit. New features: View active sessions in the dashboard. Manually disconnect/kill specific sessions. Separate cleanup rules for web, TV and other clients.",
+    "description": "Automatically removes sessions older than a configured limit. New features: View active sessions in the dashboard. Manually disconnect/kill specific sessions. Separate cleanup rules for web, TV and other clients. Optionally stop videos that stay paused too long without signing the client out.",
     "overview": "Removes old sessions and allows manual session management.",
     "owner": "Trewqa",
     "category": "Administration",
     "versions": [
+      {
+        "version": "2.1.0.0",
+        "changelog": "Stop paused playback: optionally stop videos paused longer than a set time (separate web / TV / other limits) without signing the client out. Off by default.",
+        "targetAbi": "12.0.0.0",
+        "sourceUrl": "https://github.com/kylerobi/jellyfin-plugin-enhancedsessioncleaner/releases/download/v2.1.0/Jellyfin.Plugin.EnhancedSessionCleaner_2.1.0.0.zip",
+        "checksum": "AA8A3873EA55718708239027A6EEBED5",
+        "timestamp": "2026-11-17T00:00:00Z"
+      },
       {
         "version": "2.0.0.0",
         "changelog": "Jellyfin 12.0 - 12.4 support (requires Jellyfin 12; use 1.x for Jellyfin 10.11). Separate cleanup rules for web, TV and other clients.",

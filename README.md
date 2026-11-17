@@ -1,6 +1,6 @@
 # Jellyfin Enhanced Session Cleaner Plugin
 
-![Plugin Version](https://img.shields.io/badge/version-2.0.0.0-blue)
+![Plugin Version](https://img.shields.io/badge/version-2.1.0.0-blue)
 ![Jellyfin Compatible](https://img.shields.io/badge/jellyfin-12.0--12.4-purple)
 
 **Enhanced Session Cleaner** is a new plugin based on the original Jellyfin Session Cleaner. It not only automates the removal of stale devices but puts the control back in your hands with a new dashboard interface.
@@ -13,6 +13,7 @@
 *   **Kill Switch**: Manually disconnect (logout) any specific session or device with a single click.
 *   **Auto-Cleanup**: Automatically removes sessions/devices that have been inactive for a configurable number of days.
 *   **Per-Client Cleanup Rules**: Set separate retention periods for **web** (browser) sessions, **TV** clients (Android TV, Roku, Apple TV, webOS, Tizen, Kodi, ...) and **all other** clients. Leave a web/TV value empty to use the default, or set it to `0` to never clean that client type. The keywords used to detect web and TV clients are editable, and each active session in the dashboard shows the type it was detected as.
+*   **Stop Paused Playback**: Optionally stop videos that stay paused longer than a set number of minutes, with separate limits for web, TV and other clients. The client is **not** signed out and the resume position is kept; an optional message is shown on the client. Off by default.
 
 ##  Build & Installation
 
@@ -32,6 +33,8 @@ dotnet build -c Release
 4.  Name: `Enhanced Session Cleaner`
 5.  Repository URL: `https://raw.githubusercontent.com/kylerobi/jellyfin-plugin-enhancedsessioncleaner/main/manifest.json`
 6.  Save and go to the Catalog to install.
+
+> **Upgrading from 1.x (Jellyfin 10.11)?** Uninstall the old version first, or delete its `Enhanced Session Cleaner_1.0.0.0` folder from Jellyfin's `plugins` folder, then restart. Otherwise the old copy can stop the new one from loading.
 
 ## Credits & License
 

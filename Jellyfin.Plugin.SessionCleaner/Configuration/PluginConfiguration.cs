@@ -39,4 +39,40 @@ public class PluginConfiguration : BasePluginConfiguration
     /// TV keywords are checked before web keywords.
     /// </summary>
     public string TvClientKeywords { get; set; } = ClientClassifier.DefaultTvKeywords;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether playback that stays paused for too long is stopped.
+    /// The client stays signed in; only the paused video is stopped.
+    /// </summary>
+    public bool StopPausedPlayback { get; set; }
+
+    /// <summary>
+    /// Gets or sets how many minutes playback may stay paused before it is stopped.
+    /// Used for clients that are neither web nor TV clients, and as the fallback for web / TV clients.
+    /// A value of 0 or less never stops paused playback for these clients.
+    /// </summary>
+    public int PausedMinutes { get; set; } = 30;
+
+    /// <summary>
+    /// Gets or sets how many minutes playback on a web client may stay paused.
+    /// <c>null</c> means "use <see cref="PausedMinutes"/>". 0 or less never stops paused web playback.
+    /// </summary>
+    public int? PausedWebMinutes { get; set; }
+
+    /// <summary>
+    /// Gets or sets how many minutes playback on a TV client may stay paused.
+    /// <c>null</c> means "use <see cref="PausedMinutes"/>". 0 or less never stops paused TV playback.
+    /// </summary>
+    public int? PausedTvMinutes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the message shown on the client when its paused playback is stopped.
+    /// Empty means no message is shown.
+    /// </summary>
+    public string PausedStopMessage { get; set; } = DefaultPausedStopMessage;
+
+    /// <summary>
+    /// Gets the default message shown when paused playback is stopped.
+    /// </summary>
+    public static string DefaultPausedStopMessage => "Playback was stopped because it was paused for too long.";
 }
